@@ -48,11 +48,15 @@ local function IsActiveHealer(unitID, classFileName)
         local i = 1
         while true do
             local name = UnitBuff(unitID, i)
-            if not name then break end
-            if name == "Shadowform" then return false end
+            if not name then
+                break
+                end
+            if name == "Shadowform" then 
+                return false
+                end
             i = i + 1
         end
-        return true 
+        return true
     end
 
     -- DRUID: Healer if in "Tree of Life" form
@@ -61,7 +65,9 @@ local function IsActiveHealer(unitID, classFileName)
         while true do
             local name = UnitBuff(unitID, i)
             if not name then break end
-            if name == "Tree of Life" then return true end
+            if name == "Tree of Life" then 
+                return true 
+                end
             i = i + 1
         end
         return false
@@ -72,8 +78,12 @@ local function IsActiveHealer(unitID, classFileName)
         local i = 1
         while true do
             local name = UnitBuff(unitID, i)
-            if not name then break end
-            if name == "Water Shield" or name == "Earth Shield" then return true end
+            if not name then 
+                break
+                end
+            if name == "Water Shield" or name == "Earth Shield" then 
+                return true
+                end
             i = i + 1
         end
         return false
