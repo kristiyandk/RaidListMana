@@ -1,6 +1,6 @@
 ## Interface: 30300
 ## Title: RaidListMana
-## Notes: Lists all raid members in a window
+## Notes: Lists all raid healers (not 100% accurate) in a window
 ## Author: https://github.com/kristiyandk
 ## Version: 1.0
 
