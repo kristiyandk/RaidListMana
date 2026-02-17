@@ -105,7 +105,7 @@ end
 local function UpdateRoster()
     local count = GetNumRaidMembers()
     
-    local rosterString = "Healer's Mana:\n"
+    local rosterString = "Healers Mana:\n"
     local healerCount = 0 -- We use this to resize the frame later
 
     for i = 1, count do
@@ -192,7 +192,7 @@ SLASH_HEALERMANA1 = "/rlm"
 SlashCmdList["HEALERMANA"] = function(msg)
     local scale = tonumber(msg)
     
-    if scale and scale >= 0.3 and scale <= 5 then
+    if scale and scale >= 0.5 and scale <= 4 then
         f:SetScale(scale)
         print("|cff00ff00RaidListMana:|r Scale set to " .. scale)
     else
