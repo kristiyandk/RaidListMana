@@ -1,0 +1,7 @@
+## Interface: 30300
+## Title: RaidList
+## Notes: Lists all raid members in a window
+## Author: https://github.com/kristiyandk
+## Version: 1.0
+
+core.lua
