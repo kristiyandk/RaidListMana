@@ -1,13 +1,9 @@
--- 1. Create the Main Window
 local f = CreateFrame("Frame", "RaidListMana", UIParent)
 f:SetPoint("CENTER") 
--- Note: SetBackdrop is removed so the frame is transparent/invisible
 
 -- HIDE ON LOAD: Starts in "Sleep Mode"
 f:Hide()
 
--- 2. Make it Draggable
--- Since the frame is invisible, we rely on the text/size to catch mouse clicks.
 f:EnableMouse(true)
 f:SetMovable(true)
 f:SetClampedToScreen(true)
@@ -15,7 +11,7 @@ f:RegisterForDrag("LeftButton")
 f:SetScript("OnDragStart", f.StartMoving)
 f:SetScript("OnDragStop", f.StopMovingOrSizing)
 
--- 3. Create the Text Area
+--Text Area
 f.text = f:CreateFontString(nil, "ARTWORK")
 f.text:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
 f.text:SetPoint("TOPLEFT", 0, 0) 
@@ -23,7 +19,7 @@ f.text:SetJustifyH("LEFT")
 f.text:SetJustifyV("TOP")
 f.text:SetText("Waiting for raid...")
 
--- 4. Configuration
+-- Configuration
 local updateInterval = 0.5 
 local timeSinceLastUpdate = 0
 local PALADIN_MANA_CUTOFF = 20000 
@@ -31,7 +27,7 @@ local LINE_HEIGHT = 14
 local TITLE_HEIGHT = 20 
 local FRAME_WIDTH = 200 
 
--- Helper: Get Hex Color for Class
+-- Get Hex Color for Class
 local function GetClassColorString(className)
     if RAID_CLASS_COLORS and RAID_CLASS_COLORS[className] then
         local color = RAID_CLASS_COLORS[className]
@@ -41,7 +37,7 @@ local function GetClassColorString(className)
     return "|cffffffff" -- Default to White if class not found
 end
 
--- 5. The Healer Detector
+-- The Healer Detector
 local function IsActiveHealer(unitID, classFileName)
     -- PRIEST: Healer if NOT in Shadowform
     if classFileName == "PRIEST" then
@@ -101,7 +97,7 @@ local function IsActiveHealer(unitID, classFileName)
     return false
 end
 
--- 6. The Main Update Logic
+-- The Main Update Logic
 local function UpdateRoster()
     local count = GetNumRaidMembers()
     
@@ -160,7 +156,7 @@ local function UpdateRoster()
     f:SetSize(FRAME_WIDTH, newHeight)
 end
 
--- 7. The Frame Engine
+-- The Frame Engine
 f:SetScript("OnUpdate", function(self, elapsed)
     timeSinceLastUpdate = timeSinceLastUpdate + elapsed
     if timeSinceLastUpdate > updateInterval then
@@ -169,7 +165,7 @@ f:SetScript("OnUpdate", function(self, elapsed)
     end
 end)
 
--- 8. The Wake Up Switch
+-- The Wake Up Switch
 f:RegisterEvent("RAID_ROSTER_UPDATE")
 f:RegisterEvent("PLAYER_ENTERING_WORLD")
 
@@ -186,7 +182,7 @@ f:SetScript("OnEvent", function()
     end
 end)
 
--- 9. Slash Command to Scale the Addon
+-- Slash Command to Scale the Addon
 -- Type "/hmt 1.2" to scale it to 120%
 SLASH_HEALERMANA1 = "/rlm"
 SlashCmdList["HEALERMANA"] = function(msg)
