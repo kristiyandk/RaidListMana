@@ -22,7 +22,6 @@ f.text:SetText("Waiting for raid...")
 -- Configuration
 local updateInterval = 0.5 
 local timeSinceLastUpdate = 0
-local PALADIN_MANA_CUTOFF = 20000 
 local LINE_HEIGHT = 14 
 local TITLE_HEIGHT = 20 
 local FRAME_WIDTH = 200 
@@ -31,67 +30,89 @@ local FRAME_WIDTH = 200
 local function GetClassColorString(className)
     if RAID_CLASS_COLORS and RAID_CLASS_COLORS[className] then
         local color = RAID_CLASS_COLORS[className]
-        -- Convert standard WoW colors (0-1) to Hex code (e.g. ff00a1)
         return string.format("|cff%02x%02x%02x", color.r * 255, color.g * 255, color.b * 255)
     end
     return "|cffffffff" -- Default to White if class not found
 end
 
--- The Healer Detector
-local function IsActiveHealer(unitID, classFileName)
+-- HELPER: Scan Raid to find Earth Shield Casters
+-- Returns a table: { ["raid1"] = true } for any unit that CAST an Earth Shield
+local function GetActiveRestoShamans()
+    local confirmedHealers = {}
+    local count = GetNumRaidMembers()
+    
+    for i = 1, count do
+        local targetUnit = "raid" .. i
+        local bIndex = 1
+        while true do
+            local name, _, _, _, _, _, _, unitCaster = UnitBuff(targetUnit, bIndex)
+            if not name then break end
+            
+            -- If we find Earth Shield, the CASTER is a Resto Shaman
+            if name == "Earth Shield" and unitCaster then
+                confirmedHealers[unitCaster] = true
+            end
+            bIndex = bIndex + 1
+        end
+    end
+    return confirmedHealers
+end
+
+-- The Precise Healer Detector
+local function IsActiveHealer(unitID, classFileName, confirmedShamans)
+    local maxMana = UnitPowerMax(unitID)
+
+    -- BASELINE FILTER: 
+    -- Filter out Ret Paladins, Enh Shamans, Ferals (<12k Mana)
+    if maxMana < 12000 then return false end
+
     -- PRIEST: Healer if NOT in Shadowform
     if classFileName == "PRIEST" then
         local i = 1
         while true do
             local name = UnitBuff(unitID, i)
-            if not name then
-                break
-                end
-            if name == "Shadowform" then 
-                return false
-                end
+            if not name then break end
+            if name == "Shadowform" then return false end -- Found Shadowform = DPS
             i = i + 1
         end
         return true
     end
 
-    -- DRUID: Healer if in "Tree of Life" form
+    -- DRUID: Healer if NOT in DPS/Tank Forms
     if classFileName == "DRUID" then
         local i = 1
         while true do
             local name = UnitBuff(unitID, i)
             if not name then break end
-            if name == "Tree of Life" then 
-                return true 
-                end
+            -- If we see Moonkin, Cat, or Bear, they are NOT a healer
+            if name == "Moonkin Form" or name == "Cat Form" or name == "Bear Form" or name == "Dire Bear Form" then 
+                return false 
+            end
             i = i + 1
         end
-        return false
+        return true
     end
 
-    -- SHAMAN: Healer if "Water Shield" or "Earth Shield"
+    -- SHAMAN: The "Precise" Check
     if classFileName == "SHAMAN" then
-        local i = 1
-        while true do
-            local name = UnitBuff(unitID, i)
-            if not name then 
-                break
-                end
-            if name == "Water Shield" or name == "Earth Shield" then 
-                return true
-                end
-            i = i + 1
-        end
+        -- CHECK A: Are they the source of an active Earth Shield? (100% Guaranteed Healer)
+        if confirmedShamans[unitID] then return true end
+
+        -- CHECK B: Do they have massive mana? (>24k)
+        -- Elemental usually hovers around 18k-22k. Resto pushes 30k+.
+        if maxMana > 24000 then return true end
+
+        -- If they have low mana and NO Earth Shield out, assume Elemental/Enh
         return false
     end
 
-    -- PALADIN: Healer if Max Mana > Threshold (High Intellect)
+    -- PALADIN: Healer based on Mana Pool
+    -- Holy Paladins stack Intellect (30k+ Mana). Prot/Ret do not.
     if classFileName == "PALADIN" then
-        if UnitPowerMax(unitID) > PALADIN_MANA_CUTOFF then
-            return true
-        else
-            return false
+        if maxMana > 20000 then 
+            return true 
         end
+        return false
     end
 
     return false
@@ -102,7 +123,10 @@ local function UpdateRoster()
     local count = GetNumRaidMembers()
     
     local rosterString = "Healers Mana:\n"
-    local healerCount = 0 -- We use this to resize the frame later
+    local healerCount = 0 
+    
+    -- Step 1: Pre-scan for Earth Shield owners
+    local confirmedShamans = GetActiveRestoShamans()
 
     for i = 1, count do
         local unitID = "raid" .. i
@@ -112,10 +136,9 @@ local function UpdateRoster()
             -- FILTER: Must be a potential healer class
             if classFileName == "PRIEST" or classFileName == "PALADIN" or classFileName == "DRUID" or classFileName == "SHAMAN" then
                 
-                -- CHECK: Are they actually healing?
-                if IsActiveHealer(unitID, classFileName) then
+                -- CHECK: Are they actually healing? (Pass the Shaman table)
+                if IsActiveHealer(unitID, classFileName, confirmedShamans) then
                     
-                    -- IMPORTANT: Count them so we can resize the frame!
                     healerCount = healerCount + 1
                     
                     local current = UnitPower(unitID)
@@ -125,13 +148,13 @@ local function UpdateRoster()
                         percent = math.floor((current / max) * 100)
                     end
 
-                    -- 1. Get the color code (e.g., "|cffF58CBA" for Paladin)
+                    -- 1. Get the color code
                     local colorCode = GetClassColorString(classFileName)
 
-                    -- 2. Wrap the name in color: Color + Name + Reset (|r)
+                    -- 2. Wrap the name in color
                     local coloredName = colorCode .. name .. "|r"
 
-                    -- 3. Use the COLORED name in the string format
+                    -- 3. Format the line
                     local lineText = string.format("%s: %d%%", coloredName, percent)
 
                     if not online then lineText = lineText .. " (Off)"
@@ -146,7 +169,7 @@ local function UpdateRoster()
     -- Handle empty list
     if healerCount == 0 then
         rosterString = "No active healers."
-        healerCount = 1 -- Keep frame slightly open to show the message
+        healerCount = 1 
     end
 
     f.text:SetText(rosterString)
@@ -183,7 +206,6 @@ f:SetScript("OnEvent", function()
 end)
 
 -- Slash Command to Scale the Addon
--- Type "/hmt 1.2" to scale it to 120%
 SLASH_HEALERMANA1 = "/rlm"
 SlashCmdList["HEALERMANA"] = function(msg)
     local scale = tonumber(msg)
